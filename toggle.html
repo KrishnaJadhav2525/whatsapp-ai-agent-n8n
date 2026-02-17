@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>My Status</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0a0a0a;
+      --card: #141414;
+      --border: #222;
+      --text: #f0f0f0;
+      --muted: #555;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.2rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 40px;
+    }
+
+    .status-display {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+
+    .status-emoji {
+      font-size: 72px;
+      display: block;
+      margin-bottom: 16px;
+      transition: all 0.4s ease;
+    }
+
+    .status-label {
+      font-family: 'Syne', sans-serif;
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      transition: all 0.3s ease;
+    }
+
+    .status-label.available { color: #4ade80; }
+    .status-label.busy { color: #f97316; }
+    .status-label.sleeping { color: #818cf8; }
+
+    .status-sub {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+
+    .buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+      max-width: 300px;
+    }
+
+    .btn {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 22px;
+      border-radius: 16px;
+      border: 1.5px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: left;
+    }
+
+    .btn:hover { transform: translateY(-2px); border-color: #333; }
+    .btn:active { transform: scale(0.98); }
+
+    .btn.active-available { border-color: #4ade80; background: #4ade8015; }
+    .btn.active-busy { border-color: #f97316; background: #f9731615; }
+    .btn.active-sleeping { border-color: #818cf8; background: #818cf815; }
+
+    .btn-icon { font-size: 1.5rem; }
+    .btn-text { flex: 1; }
+    .btn-title { display: block; font-weight: 600; }
+    .btn-desc { display: block; font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+
+    .check { margin-left: auto; color: #4ade80; font-size: 1.2rem; opacity: 0; transition: opacity 0.2s; }
+    .btn.active-available .check,
+    .btn.active-busy .check,
+    .btn.active-sleeping .check { opacity: 1; }
+
+    .toast {
+      position: fixed;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #1a1a1a;
+      border: 1px solid #333;
+      color: var(--text);
+      padding: 12px 24px;
+      border-radius: 99px;
+      font-size: 0.9rem;
+      transition: transform 0.3s ease;
+      white-space: nowrap;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 6px;
+    }
+    .dot.available { background: #4ade80; box-shadow: 0 0 8px #4ade80; }
+    .dot.busy { background: #f97316; box-shadow: 0 0 8px #f97316; }
+    .dot.sleeping { background: #818cf8; box-shadow: 0 0 8px #818cf8; }
+  </style>
+</head>
+<body>
+
+  <h1>WhatsApp Status</h1>
+
+  <div class="status-display">
+    <span class="status-emoji" id="emoji">🟢</span>
+    <div class="status-label available" id="label">Available</div>
+    <div class="status-sub" id="sub">Replies are off — you're reachable</div>
+  </div>
+
+  <div class="buttons">
+    <button class="btn active-available" id="btn-available" onclick="setMode('available')">
+      <span class="btn-icon">🟢</span>
+      <span class="btn-text">
+        <span class="btn-title">Available</span>
+        <span class="btn-desc">No auto-replies</span>
+      </span>
+      <span class="check">✓</span>
+    </button>
+
+    <button class="btn" id="btn-busy" onclick="setMode('busy')">
+      <span class="btn-icon">🔴</span>
+      <span class="btn-text">
+        <span class="btn-title">Busy</span>
+        <span class="btn-desc">Sends "I'm busy" reply</span>
+      </span>
+      <span class="check">✓</span>
+    </button>
+
+    <button class="btn" id="btn-sleeping" onclick="setMode('sleeping')">
+      <span class="btn-icon">😴</span>
+      <span class="btn-text">
+        <span class="btn-title">Sleeping</span>
+        <span class="btn-desc">Sends "I'm asleep" reply</span>
+      </span>
+      <span class="check">✓</span>
+    </button>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ← CHANGE THIS to your Render URL
+    const BASE_URL = 'https://whatsapp-ai-agent-n8n.onrender.com';
+
+    const modes = {
+      available: {
+        emoji: '🟢', label: 'Available', labelClass: 'available',
+        sub: 'Replies are off — you\'re reachable',
+        url: `${BASE_URL}/webhook/busy-off`
+      },
+      busy: {
+        emoji: '🔴', label: 'Busy', labelClass: 'busy',
+        sub: 'Auto-replying with busy message',
+        url: `${BASE_URL}/webhook/busy-on`
+      },
+      sleeping: {
+        emoji: '😴', label: 'Sleeping', labelClass: 'sleeping',
+        sub: 'Auto-replying with sleeping message',
+        url: null // handled by time in n8n
+      }
+    };
+
+    let current = 'available';
+
+    async function setMode(mode) {
+      const m = modes[mode];
+
+      // Update UI immediately
+      document.getElementById('emoji').textContent = m.emoji;
+      const label = document.getElementById('label');
+      label.textContent = m.label;
+      label.className = `status-label ${m.labelClass}`;
+      document.getElementById('sub').textContent = m.sub;
+
+      // Update button states
+      ['available', 'busy', 'sleeping'].forEach(b => {
+        const btn = document.getElementById(`btn-${b}`);
+        btn.className = 'btn' + (b === mode ? ` active-${b}` : '');
+      });
+
+      current = mode;
+
+      // Call webhook
+      if (m.url) {
+        try {
+          await fetch(m.url, { mode: 'no-cors' });
+          showToast(`✓ ${m.label} mode activated`);
+        } catch (e) {
+          showToast('⚠️ Could not reach n8n');
+        }
+      } else {
+        showToast(`😴 Sleeping mode — handled by schedule`);
+      }
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2500);
+    }
+  </script>
+</body>
+</html>
