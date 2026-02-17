@@ -200,37 +200,32 @@
       }
     };
 
-    let current = 'available';
+    // Load saved mode on page open, default to 'busy'
+    const saved = localStorage.getItem('whatsapp-mode') || 'busy';
+    applyMode(saved);
 
     async function setMode(mode) {
-      const m = modes[mode];
+      applyMode(mode);
+      localStorage.setItem('whatsapp-mode', mode);
+      try {
+        await fetch(modes[mode].url, { mode: 'no-cors' });
+        showToast(`✓ ${modes[mode].label} mode activated`);
+      } catch (e) {
+        showToast('⚠️ Could not reach n8n');
+      }
+    }
 
-      // Update UI immediately
+    function applyMode(mode) {
+      const m = modes[mode];
       document.getElementById('emoji').textContent = m.emoji;
       const label = document.getElementById('label');
       label.textContent = m.label;
       label.className = `status-label ${m.labelClass}`;
       document.getElementById('sub').textContent = m.sub;
-
-      // Update button states
       ['available', 'busy', 'sleeping'].forEach(b => {
-        const btn = document.getElementById(`btn-${b}`);
-        btn.className = 'btn' + (b === mode ? ` active-${b}` : '');
+        document.getElementById(`btn-${b}`).className =
+          'btn' + (b === mode ? ` active-${b}` : '');
       });
-
-      current = mode;
-
-      // Call webhook
-      if (m.url) {
-        try {
-          await fetch(m.url, { mode: 'no-cors' });
-          showToast(`✓ ${m.label} mode activated`);
-        } catch (e) {
-          showToast('⚠️ Could not reach n8n');
-        }
-      } else {
-        showToast(`😴 Sleeping mode — handled by schedule`);
-      }
     }
 
     function showToast(msg) {
