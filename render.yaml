@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: my-n8n
+    runtime: node
+    buildCommand: npm install n8n -g
+    startCommand: n8n start
+    envVars:
+      - key: N8N_HOST
+        value: 0.0.0.0
+      - key: N8N_PORT
+        value: 10000
+      - key: N8N_PROTOCOL
+        value: https
+      - key: WEBHOOK_URL
+        value: https://my-n8n.onrender.com  # ← update after first deploy
+      - key: N8N_ENCRYPTION_KEY
+        generateValue: true
+      - key: N8N_BASIC_AUTH_ACTIVE
+        value: true
+      - key: N8N_BASIC_AUTH_USER
+        value: admin
+      - key: N8N_BASIC_AUTH_PASSWORD
+        value: changeme123  # ← change this!
+      - key: GREEN_API_INSTANCE
+        value: your_instance_id_here
+      - key: GREEN_API_TOKEN
+        value: your_token_here
