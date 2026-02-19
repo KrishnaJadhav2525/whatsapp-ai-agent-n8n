@@ -16,7 +16,7 @@
       },
       {
         "parameters": {
-          "jsCode": "// Dedupe: Don't reply to same person more than once every 30 mins\nconst data = $getWorkflowStaticData('global');\nconst senderId = $input.first().json.senderData?.chatId || $input.first().json.from;\n\nif (!senderId) return [];\n\n// Ignore messages from yourself\nif ($input.first().json.senderData?.sender === 'me') return [];\n\nconst lastReplied = data.lastReplied || {};\nconst now = Date.now();\n\nif (lastReplied[senderId] && now - lastReplied[senderId] < 1800000) {\n  return []; // Already replied in last 30 mins, stop\n}\n\nlastReplied[senderId] = now;\ndata.lastReplied = lastReplied;\n\nreturn [{ json: { chatId: senderId } }];"
+          "jsCode": "// ⚙️ SETTINGS - Change the number below to adjust dedupe time\nconst DEDUPE_SECONDS = 1; // Change this number (in seconds). Examples: 1 = 1 second, 60 = 1 minute, 300 = 5 minutes, 1800 = 30 minutes\n// ================================================\n\nconst data = $getWorkflowStaticData('global');\nconst senderId = $input.first().json.body.senderData?.chatId || $input.first().json.body.from;\n\nif (!senderId) return [];\n\n// Ignore messages from yourself\nif ($input.first().json.body.senderData?.sender === 'me') return [];\n\nconst lastReplied = data.lastReplied || {};\nconst now = Date.now();\n\nif (lastReplied[senderId] && now - lastReplied[senderId] < DEDUPE_SECONDS * 1000) {\n  return []; // Already replied within the set time, stop\n}\n\nlastReplied[senderId] = now;\ndata.lastReplied = lastReplied;\n\nreturn [{ json: { chatId: senderId } }];"
         },
         "id": "2",
         "name": "Dedupe Check",
@@ -183,7 +183,7 @@
       {
         "parameters": {
           "method": "GET",
-          "url": "=https://my-n8n.onrender.com/healthz"
+          "url": "https://whatsapp-ai-agent-n8n.onrender.com/healthz"
         },
         "id": "12",
         "name": "Ping Self",
