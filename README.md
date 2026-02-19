@@ -1,4 +1,3 @@
-# whatsapp-ai-agent-n8n
 # 💬 WhatsApp Auto Reply Bot — Sleep, Busy & Available
 
 A smart WhatsApp auto-reply bot that automatically responds to incoming messages based on your current status. Set yourself as **Available**, **Busy**, or **Sleeping** from a mobile-friendly webpage — the bot does the rest.
@@ -151,7 +150,7 @@ sequenceDiagram
 ### Node 2: Dedupe Check
 - **Type**: Code (JavaScript)
 - **What it does**: Prevents replying to the same person multiple times within a short window. Reads sender's `chatId` from `body.senderData.chatId`, checks when they were last replied to using n8n static data, and blocks the flow if within the cooldown period.
-- **Key setting**: `DEDUPE_SECONDS = 1` (change this to increase cooldown)
+- **Key setting**: `DEDUPE_SECONDS = 1800` (30 minutes — prevents reply spam to the same person)
 - **Important**: Ignores messages where `sender === 'me'` (your own outgoing messages)
 
 ### Node 3: Read Status from DB
@@ -354,7 +353,7 @@ Convenience — you don't need to remember to set sleeping mode every night. Man
 - **Neon free tier**: 512MB storage, 1 compute unit — more than enough for this single-row table forever.
 - **Render free tier**: Limited to 750 hours/month. With keep-alive pings, the service stays warm but counts against this limit.
 - **GREEN-API free tier**: Has message queue limits. If queue builds up (e.g., from a backlog), clear it via the trash icon in GREEN-API console.
-- **Dedupe window**: Currently 1 second. For production use, set to 60–300 seconds to avoid reply spam to the same person.
+- **Dedupe window**: Set to 1800 seconds (30 minutes) — prevents replying to the same person more than once per 30 minute window.
 - **n8n execution storage**: Set to save last 3 executions only (`0/3` in the UI) to avoid DB bloat.
 
 ---
