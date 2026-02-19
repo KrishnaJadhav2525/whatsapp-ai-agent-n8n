@@ -1,224 +1,359 @@
 {
-    "name": "WhatsApp Auto Reply - Sleep & Busy",
-    "nodes": [
-      {
-        "parameters": {
-          "httpMethod": "POST",
-          "path": "whatsapp-incoming",
-          "responseMode": "onReceived",
-          "responseData": "firstEntryJson"
-        },
-        "id": "1",
-        "name": "Incoming Message Webhook",
-        "type": "n8n-nodes-base.webhook",
-        "typeVersion": 1,
-        "position": [250, 300]
+  "name": "WhatsApp Auto Reply - Sleep & Busy",
+  "nodes": [
+
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp-incoming",
+        "responseMode": "onReceived",
+        "responseData": "firstEntryJson"
       },
-      {
-        "parameters": {
-          "jsCode": "// ⚙️ SETTINGS - Change the number below to adjust dedupe time\nconst DEDUPE_SECONDS = 1; // Change this number (in seconds). Examples: 1 = 1 second, 60 = 1 minute, 300 = 5 minutes, 1800 = 30 minutes\n// ================================================\n\nconst data = $getWorkflowStaticData('global');\nconst senderId = $input.first().json.body.senderData?.chatId || $input.first().json.body.from;\n\nif (!senderId) return [];\n\n// Ignore messages from yourself\nif ($input.first().json.body.senderData?.sender === 'me') return [];\n\nconst lastReplied = data.lastReplied || {};\nconst now = Date.now();\n\nif (lastReplied[senderId] && now - lastReplied[senderId] < DEDUPE_SECONDS * 1000) {\n  return []; // Already replied within the set time, stop\n}\n\nlastReplied[senderId] = now;\ndata.lastReplied = lastReplied;\n\nreturn [{ json: { chatId: senderId } }];"
-        },
-        "id": "2",
-        "name": "Dedupe Check",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [470, 300]
+      "id": "node-1",
+      "name": "Incoming Message Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+
+    {
+      "parameters": {
+        "jsCode": "// ⚙️ SETTINGS\nconst DEDUPE_SECONDS = 60; // cooldown between replies to same person\n// ============================================================\n\nconst body = $input.first().json.body;\nconst senderData = body?.senderData;\n\nif (!senderData) return [];\n\nconst sender   = senderData.sender;\nconst chatId   = senderData.chatId;\n\n// Ignore your own outgoing messages\nif (sender === 'me' || !chatId) return [];\n\n// Dedupe using static data\nconst state = $getWorkflowStaticData('global');\nif (!state.lastReplied) state.lastReplied = {};\n\nconst now  = Date.now();\nconst last = state.lastReplied[chatId] || 0;\n\nif (now - last < DEDUPE_SECONDS * 1000) return []; // still in cooldown\n\nstate.lastReplied[chatId] = now;\n\nreturn [{ json: { chatId } }];"
       },
-      {
-        "parameters": {
-          "conditions": {
-            "number": [
-              {
-                "value1": "={{ new Date().getHours() }}",
-                "operation": "largerEqual",
-                "value2": 23
-              }
-            ]
-          },
-          "combineOperation": "any",
-          "conditions2": {
-            "number": [
-              {
-                "value1": "={{ new Date().getHours() }}",
-                "operation": "smaller",
-                "value2": 7
-              }
-            ]
-          }
-        },
-        "id": "3",
-        "name": "Is Sleep Time? (11PM - 7AM)",
-        "type": "n8n-nodes-base.if",
-        "typeVersion": 1,
-        "position": [690, 300]
+      "id": "node-2",
+      "name": "Dedupe Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT value FROM bot_state WHERE key = 'status' LIMIT 1;",
+        "options": {}
       },
-      {
-        "parameters": {
-          "conditions": {
-            "boolean": [
-              {
-                "value1": "={{ $getWorkflowStaticData('global').busyMode }}",
-                "value2": true
-              }
-            ]
-          }
-        },
-        "id": "4",
-        "name": "Is Busy Mode ON?",
-        "type": "n8n-nodes-base.if",
-        "typeVersion": 1,
-        "position": [690, 500]
-      },
-      {
-        "parameters": {
-          "method": "POST",
-          "url": "=https://api.green-api.com/waInstance{{ $env.GREEN_API_INSTANCE }}/sendMessage/{{ $env.GREEN_API_TOKEN }}",
-          "sendBody": true,
-          "bodyParameters": {
-            "parameters": [
-              {
-                "name": "chatId",
-                "value": "={{ $node['Dedupe Check'].json.chatId }}"
-              },
-              {
-                "name": "message",
-                "value": "Hey! I'm sleeping right now 😴 I'll get back to you in the morning. Take care!"
-              }
-            ]
-          }
-        },
-        "id": "5",
-        "name": "Send Sleep Reply",
-        "type": "n8n-nodes-base.httpRequest",
-        "typeVersion": 4,
-        "position": [920, 200]
-      },
-      {
-        "parameters": {
-          "method": "POST",
-          "url": "=https://api.green-api.com/waInstance{{ $env.GREEN_API_INSTANCE }}/sendMessage/{{ $env.GREEN_API_TOKEN }}",
-          "sendBody": true,
-          "bodyParameters": {
-            "parameters": [
-              {
-                "name": "chatId",
-                "value": "={{ $node['Dedupe Check'].json.chatId }}"
-              },
-              {
-                "name": "message",
-                "value": "Hey! I'm a bit busy right now 🙏 I'll reply as soon as I'm free!"
-              }
-            ]
-          }
-        },
-        "id": "6",
-        "name": "Send Busy Reply",
-        "type": "n8n-nodes-base.httpRequest",
-        "typeVersion": 4,
-        "position": [920, 480]
-      },
-      {
-        "parameters": {
-          "httpMethod": "GET",
-          "path": "busy-on",
-          "responseMode": "onReceived",
-          "responseData": "firstEntryJson"
-        },
-        "id": "7",
-        "name": "Busy ON Webhook",
-        "type": "n8n-nodes-base.webhook",
-        "typeVersion": 1,
-        "position": [250, 600]
-      },
-      {
-        "parameters": {
-          "httpMethod": "GET",
-          "path": "busy-off",
-          "responseMode": "onReceived",
-          "responseData": "firstEntryJson"
-        },
-        "id": "8",
-        "name": "Busy OFF Webhook",
-        "type": "n8n-nodes-base.webhook",
-        "typeVersion": 1,
-        "position": [250, 750]
-      },
-      {
-        "parameters": {
-          "jsCode": "$getWorkflowStaticData('global').busyMode = true;\nreturn [{ json: { status: 'Busy mode is now ON 🔴' } }];"
-        },
-        "id": "9",
-        "name": "Set Busy ON",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [470, 600]
-      },
-      {
-        "parameters": {
-          "jsCode": "$getWorkflowStaticData('global').busyMode = false;\nreturn [{ json: { status: 'Busy mode is now OFF 🟢' } }];"
-        },
-        "id": "10",
-        "name": "Set Busy OFF",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [470, 750]
-      },
-      {
-        "parameters": {
-          "rule": {
-            "interval": [
-              {
-                "field": "minutes",
-                "minutesInterval": 10
-              }
-            ]
-          }
-        },
-        "id": "11",
-        "name": "Keep Alive (every 10 mins)",
-        "type": "n8n-nodes-base.scheduleTrigger",
-        "typeVersion": 1,
-        "position": [250, 900]
-      },
-      {
-        "parameters": {
-          "method": "GET",
-          "url": "https://whatsapp-ai-agent-n8n.onrender.com/healthz"
-        },
-        "id": "12",
-        "name": "Ping Self",
-        "type": "n8n-nodes-base.httpRequest",
-        "typeVersion": 4,
-        "position": [470, 900]
+      "id": "node-3",
+      "name": "Read Status from DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [680, 300],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "Neon PostgreSQL"
+        }
       }
-    ],
-    "connections": {
-      "Incoming Message Webhook": {
-        "main": [[{ "node": "Dedupe Check", "type": "main", "index": 0 }]]
+    },
+
+    {
+      "parameters": {
+        "jsCode": "// Reads DB status + computes IST time\n// Auto-sleep activates when status='available' AND IST hour is 23-6\n\nconst dbRow   = $input.first().json;\nconst status  = dbRow.value || 'available';\nconst chatId  = $node['Dedupe Check'].json.chatId;\n\n// Compute IST hour (UTC + 5:30)\nconst nowUTC     = new Date();\nconst istMinutes = (nowUTC.getUTCHours() * 60 + nowUTC.getUTCMinutes() + 330) % 1440;\nconst istHour    = Math.floor(istMinutes / 60);\n\nconst isAutoSleepTime = istHour >= 23 || istHour < 7;\n\n// Auto-sleep only kicks in when user is 'available' (not manually overriding)\nconst effectiveStatus = (isAutoSleepTime && status === 'available') ? 'sleeping' : status;\n\nreturn [{ json: { chatId, status, istHour, isAutoSleepTime, effectiveStatus } }];"
       },
-      "Dedupe Check": {
-        "main": [[{ "node": "Is Sleep Time? (11PM - 7AM)", "type": "main", "index": 0 }]]
+      "id": "node-4",
+      "name": "Compute Effective Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.effectiveStatus }}",
+              "operation": "equal",
+              "value2": "sleeping"
+            }
+          ]
+        }
       },
-      "Is Sleep Time? (11PM - 7AM)": {
-        "main": [
-          [{ "node": "Send Sleep Reply", "type": "main", "index": 0 }],
-          [{ "node": "Is Busy Mode ON?", "type": "main", "index": 0 }]
-        ]
+      "id": "node-5",
+      "name": "Is Sleeping?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    },
+
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.effectiveStatus }}",
+              "operation": "equal",
+              "value2": "busy"
+            }
+          ]
+        }
       },
-      "Is Busy Mode ON?": {
-        "main": [
-          [{ "node": "Send Busy Reply", "type": "main", "index": 0 }],
-          []
-        ]
+      "id": "node-6",
+      "name": "Is Busy?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1120, 520]
+    },
+
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.green-api.com/waInstance{{ $env.GREEN_API_INSTANCE }}/sendMessage/{{ $env.GREEN_API_TOKEN }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chatId",
+              "value": "={{ $node['Compute Effective Status'].json.chatId }}"
+            },
+            {
+              "name": "message",
+              "value": "Hey! I'm asleep right now 😴 I'll get back to you in the morning. Take care!"
+            }
+          ]
+        }
       },
-      "Busy ON Webhook": {
-        "main": [[{ "node": "Set Busy ON", "type": "main", "index": 0 }]]
+      "id": "node-7",
+      "name": "Send Sleep Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1360, 200]
+    },
+
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.green-api.com/waInstance{{ $env.GREEN_API_INSTANCE }}/sendMessage/{{ $env.GREEN_API_TOKEN }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chatId",
+              "value": "={{ $node['Compute Effective Status'].json.chatId }}"
+            },
+            {
+              "name": "message",
+              "value": "Hey! I'm a bit busy right now 🙏 I'll reply as soon as I'm free!"
+            }
+          ]
+        }
       },
-      "Busy OFF Webhook": {
-        "main": [[{ "node": "Set Busy OFF", "type": "main", "index": 0 }]]
+      "id": "node-8",
+      "name": "Send Busy Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1360, 480]
+    },
+
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "set-available",
+        "responseMode": "responseNode"
       },
-      "Keep Alive (every 10 mins)": {
-        "main": [[{ "node": "Ping Self", "type": "main", "index": 0 }]]
+      "id": "node-9",
+      "name": "Set Available Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 620]
+    },
+
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE bot_state SET value = 'available' WHERE key = 'status';",
+        "options": {}
+      },
+      "id": "node-10",
+      "name": "Set Available in DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [460, 620],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "Neon PostgreSQL"
+        }
       }
+    },
+
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"ok\": true, \"status\": \"available\" }"
+      },
+      "id": "node-11",
+      "name": "Respond Set Available",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [680, 620]
+    },
+
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "set-busy",
+        "responseMode": "responseNode"
+      },
+      "id": "node-12",
+      "name": "Set Busy Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 780]
+    },
+
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE bot_state SET value = 'busy' WHERE key = 'status';",
+        "options": {}
+      },
+      "id": "node-13",
+      "name": "Set Busy in DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [460, 780],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "Neon PostgreSQL"
+        }
+      }
+    },
+
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"ok\": true, \"status\": \"busy\" }"
+      },
+      "id": "node-14",
+      "name": "Respond Set Busy",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [680, 780]
+    },
+
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "set-sleeping",
+        "responseMode": "responseNode"
+      },
+      "id": "node-15",
+      "name": "Set Sleeping Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 940]
+    },
+
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE bot_state SET value = 'sleeping' WHERE key = 'status';",
+        "options": {}
+      },
+      "id": "node-16",
+      "name": "Set Sleeping in DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [460, 940],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "Neon PostgreSQL"
+        }
+      }
+    },
+
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"ok\": true, \"status\": \"sleeping\" }"
+      },
+      "id": "node-17",
+      "name": "Respond Set Sleeping",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [680, 940]
+    },
+
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 10
+            }
+          ]
+        }
+      },
+      "id": "node-18",
+      "name": "Keep Alive (every 10 mins)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [240, 1100]
+    },
+
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://whatsapp-ai-agent-n8n.onrender.com/healthz"
+      },
+      "id": "node-19",
+      "name": "Ping Self",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [460, 1100]
+    }
+
+  ],
+
+  "connections": {
+    "Incoming Message Webhook": {
+      "main": [[{ "node": "Dedupe Check", "type": "main", "index": 0 }]]
+    },
+    "Dedupe Check": {
+      "main": [[{ "node": "Read Status from DB", "type": "main", "index": 0 }]]
+    },
+    "Read Status from DB": {
+      "main": [[{ "node": "Compute Effective Status", "type": "main", "index": 0 }]]
+    },
+    "Compute Effective Status": {
+      "main": [[{ "node": "Is Sleeping?", "type": "main", "index": 0 }]]
+    },
+    "Is Sleeping?": {
+      "main": [
+        [{ "node": "Send Sleep Reply", "type": "main", "index": 0 }],
+        [{ "node": "Is Busy?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Is Busy?": {
+      "main": [
+        [{ "node": "Send Busy Reply", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Set Available Webhook": {
+      "main": [[{ "node": "Set Available in DB", "type": "main", "index": 0 }]]
+    },
+    "Set Available in DB": {
+      "main": [[{ "node": "Respond Set Available", "type": "main", "index": 0 }]]
+    },
+    "Set Busy Webhook": {
+      "main": [[{ "node": "Set Busy in DB", "type": "main", "index": 0 }]]
+    },
+    "Set Busy in DB": {
+      "main": [[{ "node": "Respond Set Busy", "type": "main", "index": 0 }]]
+    },
+    "Set Sleeping Webhook": {
+      "main": [[{ "node": "Set Sleeping in DB", "type": "main", "index": 0 }]]
+    },
+    "Set Sleeping in DB": {
+      "main": [[{ "node": "Respond Set Sleeping", "type": "main", "index": 0 }]]
+    },
+    "Keep Alive (every 10 mins)": {
+      "main": [[{ "node": "Ping Self", "type": "main", "index": 0 }]]
     }
   }
+}
