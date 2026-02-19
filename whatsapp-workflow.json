@@ -18,7 +18,7 @@
 
     {
       "parameters": {
-        "jsCode": "// ⚙️ SETTINGS\nconst DEDUPE_SECONDS = 60; // cooldown between replies to same person\n// ============================================================\n\nconst body = $input.first().json.body;\nconst senderData = body?.senderData;\n\nif (!senderData) return [];\n\nconst sender   = senderData.sender;\nconst chatId   = senderData.chatId;\n\n// Ignore your own outgoing messages\nif (sender === 'me' || !chatId) return [];\n\n// Dedupe using static data\nconst state = $getWorkflowStaticData('global');\nif (!state.lastReplied) state.lastReplied = {};\n\nconst now  = Date.now();\nconst last = state.lastReplied[chatId] || 0;\n\nif (now - last < DEDUPE_SECONDS * 1000) return []; // still in cooldown\n\nstate.lastReplied[chatId] = now;\n\nreturn [{ json: { chatId } }];"
+        "jsCode": "// ⚙️ SETTINGS\nconst DEDUPE_SECONDS = 1; // cooldown between replies to same person\n// ============================================================\n\nconst body = $input.first().json.body;\nconst senderData = body?.senderData;\n\nif (!senderData) return [];\n\nconst sender   = senderData.sender;\nconst chatId   = senderData.chatId;\n\n// Ignore your own outgoing messages\nif (sender === 'me' || !chatId) return [];\n\n// Dedupe using static data\nconst state = $getWorkflowStaticData('global');\nif (!state.lastReplied) state.lastReplied = {};\n\nconst now  = Date.now();\nconst last = state.lastReplied[chatId] || 0;\n\nif (now - last < DEDUPE_SECONDS * 1000) return []; // still in cooldown\n\nstate.lastReplied[chatId] = now;\n\nreturn [{ json: { chatId } }];"
       },
       "id": "node-2",
       "name": "Dedupe Check",
